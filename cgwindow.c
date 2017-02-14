@@ -416,9 +416,15 @@ void glk_window_clear(window_t *win)
         return;
     }
 
+#if defined (__EMSCRIPTEN__)
+    EM_ASM(
+        haven.window.clear(0);
+    );
+#else
     for (ix=0; ix<gli_screenheight; ix++) {
         putc('\n', stdout);
     }
+#endif
 }
 
 void glk_window_move_cursor(window_t *win, glui32 xpos, glui32 ypos)

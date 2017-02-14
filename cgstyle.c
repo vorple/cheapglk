@@ -2,17 +2,23 @@
 #include "glk.h"
 #include "cheapglk.h"
 
-/* None of these functions do much in CheapGlk. */
+#include <emscripten.h>
 
-void glk_stylehint_set(glui32 wintype, glui32 styl, glui32 hint, 
+void glk_stylehint_set(glui32 wintype, glui32 styl, glui32 hint,
     glsi32 val)
 {
-    /* We don't do styles */
+#if defined (__EMSCRIPTEN__)
+    // only set hints that apply to the main window
+ //   if( wintype == wintype_AllTypes || wintype == wintype_TextBuffer ) {
+        EM_ASM_({
+            vorple.haven.setStyleHint( $0, $1, $2 );
+        }, styl, hint, val );
+//    }
+#endif
 }
 
 void glk_stylehint_clear(glui32 wintype, glui32 styl, glui32 hint)
 {
-    /* We don't do styles */
 }
 
 glui32 glk_style_distinguish(winid_t win, glui32 styl1, glui32 styl2)

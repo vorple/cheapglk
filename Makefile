@@ -12,7 +12,7 @@
 # It's based on Unicode character data, which is not platform-dependent.
 
 # Pick a C compiler.
-CC = cc
+CC = emcc -O3
 #CC = gcc -ansi
 
 OPTIONS = -g -Wall

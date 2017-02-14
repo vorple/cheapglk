@@ -13,6 +13,12 @@
 
 #include "gi_dispa.h"
 
+#include <emscripten.h>
+
+#if defined (__EMSCRIPTEN__)
+int cheapglk_main(int argc, char *argv[]);
+#endif
+
 /* First, we define our own TRUE and FALSE and NULL, because ANSI
     is a strange world. */
 #ifndef TRUE

@@ -67,6 +67,53 @@ unsigned char glk_char_to_upper(unsigned char ch)
     return char_toupper_table[ch];
 }
 
+#if defined (__EMSCRIPTEN__)
+int getkey_ready = 0;
+int getline_ready = 0;
+char getline_buffer[256];
+glui32 getkey_result;
+
+void EMSCRIPTEN_KEEPALIVE haven_getkey(unsigned char *s) {
+    getkey_result = (glui32)s;
+    getkey_ready = 1;
+}
+
+glui32 haven_wait_for_getkey(void)
+{
+    EM_ASM(
+        haven.input.keypress.wait();
+    );
+
+	while(!getkey_ready) {
+    	emscripten_sleep(10);
+	}
+	getkey_ready = 0;
+
+	return getkey_result;
+}
+
+void EMSCRIPTEN_KEEPALIVE haven_getline(char *s) {
+    strcpy(getline_buffer, s);
+    getline_ready = 1;
+}
+
+char *haven_wait_for_getline(void)
+{
+	EM_ASM(
+	    haven.prompt.show();
+	);
+
+	while(!getline_ready) {
+    	emscripten_sleep(30);
+	}
+
+	getline_ready = 0;
+//	getline_buffer[strlen(getline_buffer)-1] = '\0';
+	return getline_buffer;
+}
+
+#endif
+
 void glk_select(event_t *event)
 {
     window_t *win = gli_window_get();
@@ -84,9 +131,13 @@ void glk_select(event_t *event)
     }
     
     if (win->char_request) {
+        glui32 kval;
+
+#if defined (__EMSCRIPTEN__)
+        kval = haven_wait_for_getkey();
+#else
         char *res;
         char buf[256];
-        glui32 kval;
         int len;
         
         /* How cheap are we? We don't want to fiddle with line 
@@ -94,7 +145,8 @@ void glk_select(event_t *event)
             return) and use the first key. Remember that return has to 
             be turned into a special keycode (and so would other keys,
             if we could recognize them.) */
- 
+
+
         res = fgets(buf, 255, stdin);
         if (!res) {
             printf("\n<end of input>\n");
@@ -121,6 +173,7 @@ void glk_select(event_t *event)
             if (!win->char_request_uni && kval >= 0x100)
                 kval = '?';
         }
+#endif
         
         win->char_request = FALSE;
         event->type = evtype_CharInput;
@@ -130,16 +183,22 @@ void glk_select(event_t *event)
     }
     else {
         /* line_request */
-        char *res;
         char buf[256];
         int val;
         glui32 ix;
 
+#if defined (__EMSCRIPTEN__)
+        strcpy(buf, haven_wait_for_getline());
+#else
+        char *res;
+
         res = fgets(buf, 255, stdin);
+
         if (!res) {
             printf("\n<end of input>\n");
             glk_exit();
         }
+#endif
 
         val = strlen(buf);
         if (val && (buf[val-1] == '\n' || buf[val-1] == '\r'))

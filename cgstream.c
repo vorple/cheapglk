@@ -5,6 +5,8 @@
 #include "cheapglk.h"
 #include "gi_blorb.h"
 
+#include <emscripten.h>
+
 /* This implements pretty much what any Glk implementation needs for 
     stream stuff. Memory streams, file streams (using stdio functions), 
     and window streams (which just print to stdout.) A fancier 
@@ -193,7 +195,7 @@ strid_t glk_stream_open_file(fileref_t *fref, glui32 fmode,
     stream_t *str;
     char modestr[16];
     FILE *fl;
-    
+
     if (!fref) {
         gli_strict_warning("stream_open_file: invalid fileref id.");
         return NULL;
@@ -229,6 +231,13 @@ strid_t glk_stream_open_file(fileref_t *fref, glui32 fmode,
             break;
         case filemode_ReadWrite:
             strcpy(modestr, "r+");
+#if defined (__EMSCRIPTEN__)
+        // tell Vorple that the game has written a file that might or might not
+        // be a control file
+        EM_ASM_({
+            vorple.fileClosed(Pointer_stringify($0));
+        }, fref->filename);
+#endif
             break;
         case filemode_WriteAppend:
             /* Can't use "a" here, because then fseek wouldn't work.
@@ -642,6 +651,12 @@ static void gli_put_char(stream_t *str, unsigned char ch)
                 gli_strict_warning("put_char: window has pending line request");
                 break;
             }
+
+#if defined (__EMSCRIPTEN__)
+            EM_ASM_({
+	            haven.buffer.append(String.fromCharCode($0), 0);
+            }, ch );
+#else
             /* If you're going to convert Latin-1 to a different 
                 character set, this is (a) place to do it. Only on the 
                 putc(); not on the gli_put_char to echostr. */
@@ -651,6 +666,7 @@ static void gli_put_char(stream_t *str, unsigned char ch)
                 gli_putchar_utf8(ch, stdout);
             if (str->win->echostr)
                 gli_put_char(str->win->echostr, ch);
+#endif
             break;
         case strtype_File:
             gli_stream_ensure_op(str, filemode_Write);
@@ -712,6 +728,12 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
                 gli_strict_warning("put_char_uni: window has pending line request");
                 break;
             }
+
+#if defined (__EMSCRIPTEN__)
+            EM_ASM_({
+	            haven.buffer.append(String.fromCharCode($0), 0);
+            }, ch );
+#else
             /* If you're going to convert Latin-1 to a different 
                 character set, this is (a) place to do it. Only on the 
                 putc(); not on the gli_put_char to echostr. */
@@ -721,6 +743,7 @@ static void gli_put_char_uni(stream_t *str, glui32 ch)
                 gli_putchar_utf8(ch, stdout);
             if (str->win->echostr)
                 gli_put_char_uni(str->win->echostr, ch);
+#endif
             break;
         case strtype_File:
             gli_stream_ensure_op(str, filemode_Write);
@@ -810,6 +833,12 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                 gli_strict_warning("put_buffer: window has pending line request");
                 break;
             }
+
+#if defined (__EMSCRIPTEN__)
+            EM_ASM_({
+                haven.buffer.append(Pointer_stringify($0), 0);
+            }, buf );
+#else
             /* If you're going to convert Latin-1 to a different 
                 character set, this is (a) place to do it. Only on the 
                 fwrite(); not on the gli_put_buffer to echostr. */
@@ -820,6 +849,7 @@ static void gli_put_buffer(stream_t *str, char *buf, glui32 len)
                 for (lx=0; lx<len; lx++)
                     gli_putchar_utf8(((unsigned char *)buf)[lx], stdout);
             }
+#endif
             if (str->win->echostr)
                 gli_put_buffer(str->win->echostr, buf, len);
             break;
@@ -1607,7 +1637,9 @@ glui32 glk_get_line_stream_uni(strid_t str, glui32 *buf, glui32 len)
 
 void glk_set_style(glui32 val)
 {
-    /* This cheap library doesn't handle styles */
+    EM_ASM_({
+        vorple.haven.setStyle( $0, 0 );
+    }, val);
 }
 
 void glk_set_style_stream(stream_t *str, glui32 val)
@@ -1616,7 +1648,10 @@ void glk_set_style_stream(stream_t *str, glui32 val)
         gli_strict_warning("set_style_stream: invalid ref");
         return;
     }
-    /* This cheap library doesn't handle styles */
+
+    EM_ASM_({
+        vorple.haven.setStyle( $0, 0 );
+    }, val);
 }
 
 glsi32 glk_get_char_stream(stream_t *str)

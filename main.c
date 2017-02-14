@@ -5,6 +5,8 @@
 #include "cheapglk.h"
 #include "glkstart.h"
 
+#include <emscripten.h>
+
 int gli_screenwidth = 80;
 int gli_screenheight = 24; 
 int gli_utf8output = FALSE;
@@ -12,7 +14,28 @@ int gli_utf8input = FALSE;
 
 static int inittime = FALSE;
 
+#if defined (__EMSCRIPTEN__)
+
+static char **my_argv = NULL;
+static int my_argc = 0;
+
+// We'll pause the execution until the frontend loads the story file.
 int main(int argc, char *argv[])
+{
+    my_argc = argc;
+    my_argv = argv;
+    return 0;
+}
+
+int EMSCRIPTEN_KEEPALIVE haven_start()
+{
+    return cheapglk_main(my_argc, my_argv);
+}
+
+int cheapglk_main(int argc, char *argv[])
+#else
+int main(int argc, char *argv[])
+#endif
 {
     int ix, jx, val;
     int display_version = TRUE;
