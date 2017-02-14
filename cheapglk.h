@@ -3,15 +3,16 @@
 
 /* cheapglk.h: Private header file for Cheapass Implementation of the 
         Glk API.
-    CheapGlk Library: version 1.0.5.
-    Glk API which this implements: version 0.7.4.
+    CheapGlk Library: version 1.0.6.
+    Glk API which this implements: version 0.7.5.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/index.html
 */
 
-#define LIBRARY_VERSION "1.0.5"
+#define LIBRARY_VERSION "1.0.6"
 
 #include "gi_dispa.h"
+#include "gi_debug.h"
 
 #include <emscripten.h>
 
@@ -45,6 +46,13 @@ extern int gli_screenwidth, gli_screenheight;
    stdin/stdout) is expecting UTF-8 encoding? Normally input and output
    will be the same, but they don't have to be. */
 extern int gli_utf8output, gli_utf8input;
+
+#if GIDEBUG_LIBRARY_SUPPORT
+/* Has the user requested debug support? */
+extern int gli_debugger;
+#else /* GIDEBUG_LIBRARY_SUPPORT */
+#define gli_debugger (0)
+#endif /* GIDEBUG_LIBRARY_SUPPORT */
 
 /* Callbacks necessary for the dispatch layer. */
 extern gidispatch_rock_t (*gli_register_obj)(void *obj, glui32 objclass);
@@ -173,6 +181,7 @@ extern fileref_t *gli_new_fileref(char *filename, glui32 usage,
 extern void gli_delete_fileref(fileref_t *fref);
 
 extern void gli_putchar_utf8(glui32 val, FILE *fl);
+extern int gli_encode_utf8(glui32 val, char *buf, int len);
 extern glui32 gli_parse_utf8(unsigned char *buf, glui32 buflen,
     glui32 *out, glui32 outlen);
 

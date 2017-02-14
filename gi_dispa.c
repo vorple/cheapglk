@@ -1,8 +1,8 @@
-/* gi_dispa.c: Dispatch layer for Glk API, version 0.7.4.
+/* gi_dispa.c: Dispatch layer for Glk API, version 0.7.5.
     Designed by Andrew Plotkin <erkyrath@eblong.com>
     http://eblong.com/zarf/glk/
 
-    This file is copyright 1998-2012 by Andrew Plotkin. It is
+    This file is copyright 1998-2017 by Andrew Plotkin. It is
     distributed under the MIT license; see the "LICENSE" file.
 */
 
@@ -661,6 +661,10 @@ char *gidispatch_prototype(glui32 funcnum)
         case 0x013A: /* stream_open_resource_uni */
             return "3IuIu:Qb";
 #endif /* GLK_MODULE_RESOURCE_STREAM */
+
+#ifdef GLK_EXTEND_PROTOTYPE
+        GLK_EXTEND_PROTOTYPE
+#endif /* GLK_EXTEND_PROTOTYPE */
 
         default:
             return NULL;
@@ -1489,9 +1493,44 @@ void gidispatch_call(glui32 funcnum, glui32 numargs, gluniversal_t *arglist)
             break;
 #endif /* GLK_MODULE_RESOURCE_STREAM */
 
+#ifdef GLK_EXTEND_CALL
+        GLK_EXTEND_CALL
+#endif /* GLK_EXTEND_CALL */
+
         default:
             /* do nothing */
             break;
     }
 }
 
+#ifdef GI_DISPA_GAME_ID_AVAILABLE
+
+static char *(*game_id_hook)(void) = NULL;
+
+/* Set a function for getting a game ID string. The Glk library may
+   call the supplied function when creating files, so that the files
+   can be put in a game-specific location.
+
+   The function must have the form: char *func(void);
+
+   It should return NULL or a pointer to a (null-terminated) string.
+   (The string will be copied, so it may be in a temporary buffer.)
+*/
+void gidispatch_set_game_id_hook(char *(*hook)(void))
+{
+    game_id_hook = hook;
+}
+
+/* Retrieve a game ID string for the current game. 
+
+   If not NULL, this string may be in a temporary buffer, so the caller
+   must copy it!
+*/
+char *gidispatch_get_game_id(void)
+{
+    if (!game_id_hook)
+        return NULL;
+    return game_id_hook();
+}
+
+#endif /* GI_DISPA_GAME_ID_AVAILABLE */

@@ -1,7 +1,7 @@
 CheapGlk: Cheapass Implementation of the Glk API.
 
-CheapGlk Library: version 1.0.5.
-Glk API which this implements: version 0.7.4.
+CheapGlk Library: version 1.0.6.
+Glk API which this implements: version 0.7.5.
 Designed by Andrew Plotkin <erkyrath@eblong.com>
 http://eblong.com/zarf/glk/index.html
 
@@ -29,6 +29,9 @@ newlines.)
     -u: Both of the above.
 
     -q: Don't display the "Welcome to CheapGlk" banner before the game.
+
+    -D: Consider "/" to be a debug command prefix; all /commands are
+        passed to the game debugger (if it has one).
 
 * Notes on building this mess:
 
@@ -147,6 +150,8 @@ libraries.) These gli_ functions (and other internal constants and
 structures) are declared in cheapglk.h.
 
 The files gi_dispa.c and gi_dispa.h are the Glk dispatch layer.
+gi_blorb.c,h are the Blorb utility functions, and gi_debug.c,h are
+the debug console interface.
 
 As you can see from the code, I've kept a policy of catching every error
 that I can possibly catch, and printing visible warnings.
@@ -165,8 +170,15 @@ key as meta key" preference.)
 
 * Version History
 
+1.0.6:
+    Declared support for Glk spec 0.7.5.
+    Added support for a "debug console". If the -D option is given, lines
+    beginning with "/" are considered debug commands. (This is not
+    interesting unless the interpreter is compiled with debug support.)
+
 1.0.5:
-    Text-mode Unicode file streams are now read and written in UTF-8.
+    Text-mode Unicode file streams are now read and written in UTF-8
+    (Glk 0.7.5, although that won't be formalized until 1.0.6).
     Fixed a struct initialization bug in gli_date_to_tm(). (I think this
     caused no problems in practice.)
     Added an optional timegm() function that you can compile in if your
@@ -260,5 +272,6 @@ key as meta key" preference.)
 * Permissions
 
 The CheapGlk, GiDispa, and GiBlorb libraries, as well as the glk.h header
-file, are copyright 1998-2016 by Andrew Plotkin. They are distributed under
-the MIT license; see the "LICENSE" file.
+file, are copyright 1998-2016 by Andrew Plotkin. The GiDebug library is
+copyright 2014-2017 by Andrew Plotkin. All are distributed under the MIT
+license; see the "LICENSE" file.

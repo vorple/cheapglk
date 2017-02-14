@@ -15,6 +15,12 @@ gidispatch_rock_t (*gli_register_arr)(void *array, glui32 len,
 void (*gli_unregister_arr)(void *array, glui32 len, char *typecode, 
     gidispatch_rock_t objrock) = NULL;
 
+/* This is needed to redisplay prompts properly after debug output.
+   Not interesting. */
+static int debug_output_counter = 0;
+
+static int perform_debug_command(char *cmd);
+
 void gli_initialize_misc()
 {
     int ix;
@@ -49,6 +55,8 @@ void gli_initialize_misc()
 
 void glk_exit()
 {
+    if (gli_debugger)
+        gidebug_announce_cycle(gidebug_cycle_End);
     exit(0);
 }
 
@@ -120,6 +128,13 @@ void glk_select(event_t *event)
     
     gli_event_clearevent(event);
     
+    if (gli_debugger) {
+        gidebug_announce_cycle(gidebug_cycle_InputWait);
+        if (debug_output_counter) {
+            debug_output_counter = 0;
+            printf(">");
+        }
+    }
     fflush(stdout);
 
     if (!win || !(win->char_request || win->line_request)) {
@@ -145,12 +160,28 @@ void glk_select(event_t *event)
             return) and use the first key. Remember that return has to 
             be turned into a special keycode (and so would other keys,
             if we could recognize them.) */
+ 
+        while (1) {
+            /* If debug mode is on, it may capture input, in which case
+               we need to loop until real input arrives. */
 
+            res = fgets(buf, 255, stdin);
+            if (!res) {
+                printf("\n<end of input>\n");
+                glk_exit();
+            }
 
-        res = fgets(buf, 255, stdin);
-        if (!res) {
-            printf("\n<end of input>\n");
-            glk_exit();
+            if (gli_debugger) {
+                if (buf[0] == '/') {
+                    perform_debug_command(buf+1);
+                    debug_output_counter = 0;
+                    printf(">");
+                    continue;
+                }
+            }
+
+            /* not debug input */
+            break;
         }
 
         if (!gli_utf8input) {
@@ -174,7 +205,7 @@ void glk_select(event_t *event)
                 kval = '?';
         }
 #endif
-        
+
         win->char_request = FALSE;
         event->type = evtype_CharInput;
         event->win = win;
@@ -192,12 +223,28 @@ void glk_select(event_t *event)
 #else
         char *res;
 
-        res = fgets(buf, 255, stdin);
+        while (1) {
+			/* If debug mode is on, it may capture input, in which case
+			   we need to loop until real input arrives. */
 
-        if (!res) {
-            printf("\n<end of input>\n");
-            glk_exit();
-        }
+			res = fgets(buf, 255, stdin);
+			if (!res) {
+				printf("\n<end of input>\n");
+				glk_exit();
+			}
+
+			if (gli_debugger) {
+				if (buf[0] == '/') {
+					perform_debug_command(buf+1);
+					debug_output_counter = 0;
+					printf(">");
+					continue;
+				}
+			}
+
+			/* not debug input */
+			break;
+		}
 #endif
 
         val = strlen(buf);
@@ -265,6 +312,9 @@ void glk_select(event_t *event)
         event->win = win;
         event->val1 = val;
     }
+
+    if (gli_debugger)
+        gidebug_announce_cycle(gidebug_cycle_InputAccept);
 }
 
 void glk_select_poll(event_t *event)
@@ -354,3 +404,98 @@ void gidispatch_set_autorestore_registry(
        Therefore, it will never call these hooks. Therefore, we ignore
        them and do nothing here. */
 }
+
+static int perform_debug_command(char *cmd)
+{
+    char *allocbuf = NULL;
+    int res = 1;
+
+    if (!gli_utf8input) {
+        /* The string is Latin-1. We should convert to UTF-8. We do
+           this in a very lazy way: alloc the largest possible buffer. */
+        int len = 4*strlen(cmd)+4;
+        allocbuf = malloc(len);
+        char *ptr = allocbuf;
+        int count = 0;
+        while (*cmd) {
+            count += gli_encode_utf8(*cmd, ptr+count, len-count);
+            cmd++;
+        }
+        *(ptr+count) = '\0';
+        cmd = allocbuf;
+    }
+
+    int val = strlen(cmd);
+    if (val && (cmd[val-1] == '\n' || cmd[val-1] == '\r')) {
+        cmd[val-1] = '\0';
+    }
+
+    res = gidebug_perform_command(cmd);
+
+    if (allocbuf)
+        free(allocbuf);
+
+    return res;
+}
+
+#if GIDEBUG_LIBRARY_SUPPORT
+
+void gidebug_output(char *text)
+{
+    /* Send a line of text to the "debug console", if the user has
+       requested debugging mode. */
+    /* (The text is UTF-8 whether or not the library output has requested
+       that encoding. The user will just have to cope.) */
+    if (gli_debugger) {
+        printf("Debug: %s\n", text);
+        debug_output_counter++;
+    }
+}
+
+/* Block and wait for debug commands. The library will accept debug commands
+   until gidebug_perform_command() returns nonzero.
+
+   This behaves a lot like glk_select(), except that it only handles debug
+   input, not any of the standard event types.
+*/
+void gidebug_pause()
+{
+    if (!gli_debugger) {
+        return;
+    }
+
+    gidebug_announce_cycle(gidebug_cycle_DebugPause);
+    debug_output_counter = 0;
+    printf(">>");
+    fflush(stdout);
+
+    while (1) {
+        char buf[256];
+        char *res;
+        int unpause;
+
+        res = fgets(buf, 255, stdin);
+        if (!res) {
+            printf("\n<end of input>\n");
+            break;
+        }
+
+        /* The slash is optional at the beginning of a line grabbed this
+           way. */
+        if (res[0] == '/')
+            res++;
+
+        unpause = perform_debug_command(res);
+        if (unpause) {
+            debug_output_counter = 0;
+            break;
+        }
+
+        debug_output_counter = 0;
+        printf(">>");
+    }
+
+    gidebug_announce_cycle(gidebug_cycle_DebugUnpause);
+}
+
+#endif /* GIDEBUG_LIBRARY_SUPPORT */
