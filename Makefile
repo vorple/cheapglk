@@ -15,7 +15,7 @@
 CC = emcc -O3
 #CC = gcc -ansi
 
-OPTIONS = -g -Wall
+OPTIONS = -g -Wall -s ALLOW_MEMORY_GROWTH=1
 
 CFLAGS = $(OPTIONS) $(INCLUDEDIRS)
 
