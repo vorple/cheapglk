@@ -15,7 +15,7 @@
 CC = emcc -O3
 #CC = gcc -ansi
 
-OPTIONS = -g -Wall -s ALLOW_MEMORY_GROWTH=1
+OPTIONS = -g -Wall -s ALLOW_MEMORY_GROWTH=1 -s LEGACY_VM_SUPPORT=1
 
 CFLAGS = $(OPTIONS) $(INCLUDEDIRS)
 
@@ -32,8 +32,8 @@ all: $(GLKLIB) Make.cheapglk
 cgunicod.o: cgunigen.c
 
 $(GLKLIB): $(CHEAPGLK_OBJS)
-	ar r $(GLKLIB) $(CHEAPGLK_OBJS)
-	ranlib $(GLKLIB)
+	emar r $(GLKLIB) $(CHEAPGLK_OBJS)
+	emranlib $(GLKLIB)
 
 Make.cheapglk:
 	echo LINKLIBS = $(LIBDIRS) $(LIBS) > Make.cheapglk
