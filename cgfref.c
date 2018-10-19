@@ -189,8 +189,6 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
     return fref;
 }
 
-
-
 #if defined (__EMSCRIPTEN__)
 int getfilename_ready = 0;
 char getfilename_buffer[256];
@@ -198,18 +196,18 @@ char getfilename_buffer[256];
 char *getfilename_result;
 
 void EMSCRIPTEN_KEEPALIVE haven_getfilename(char *s) {
-    strcpy(getline_buffer, s);
-    getline_ready = 1;
+    strcpy(getfilename_buffer, s);
+    getfilename_ready = 1;
 }
 
 char *haven_wait_for_filename(void)
 {
-	while(!getfilename_ready) {
-    	emscripten_sleep(10);
-	}
-	getfilename_ready = 0;
+    while(!getfilename_ready) {
+        emscripten_sleep(10);
+    }
+    getfilename_ready = 0;
 
-	return getfilename_buffer;
+    return getfilename_buffer;
 }
 #endif
 
@@ -219,11 +217,13 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
     fileref_t *fref;
     char buf[BUFLEN];
     char newbuf[2*BUFLEN+10];
+#ifndef __EMSCRIPTEN__
     char *res;
+#endif
     char *cx;
     int val, gotdot;
     char *prompt, *prompt2;
-    
+
     switch (usage & fileusage_TypeMask) {
         case fileusage_SavedGame:
             prompt = "Enter saved game";
@@ -239,20 +239,20 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
             prompt = "Enter data file";
             break;
     }
-    
+
     if (fmode == filemode_Read)
         prompt2 = "to load";
     else
         prompt2 = "to store";
-    
+
     printf("%s %s: ", prompt, prompt2);
 
 #if defined (__EMSCRIPTEN__)
     EM_ASM_({
         haven.file.prompt(Pointer_stringify($0));
-    }, prompt2 );
+    }, prompt2);
 
-    buf = haven_wait_for_filename();
+    strcpy(buf, haven_wait_for_filename());
 #else
     res = fgets(buf, BUFLEN-1, stdin);
 

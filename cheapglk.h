@@ -35,8 +35,13 @@ int cheapglk_main(int argc, char *argv[]);
 /* This macro is called whenever the library code catches an error
     or illegal operation from the game program. */
 
+#if defined (__EMSCRIPTEN__)
+#define gli_strict_warning(msg)   \
+    (EM_ASM_({ console.error( "Glk library error: " + Pointer_stringify($0)); }, msg))
+#else
 #define gli_strict_warning(msg)   \
     (printf("Glk library error: %s\n", msg)) 
+#endif
 
 /* The overall screen size, as set by command-line options. A
     better implementation would check the real screen size
