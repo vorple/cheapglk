@@ -189,6 +189,30 @@ frefid_t glk_fileref_create_by_name(glui32 usage, char *name,
     return fref;
 }
 
+
+
+#if defined (__EMSCRIPTEN__)
+int getfilename_ready = 0;
+char getfilename_buffer[256];
+
+char *getfilename_result;
+
+void EMSCRIPTEN_KEEPALIVE haven_getfilename(char *s) {
+    strcpy(getline_buffer, s);
+    getline_ready = 1;
+}
+
+char *haven_wait_for_filename(void)
+{
+	while(!getfilename_ready) {
+    	emscripten_sleep(10);
+	}
+	getfilename_ready = 0;
+
+	return getfilename_buffer;
+}
+#endif
+
 frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
     glui32 rock)
 {
@@ -222,13 +246,21 @@ frefid_t glk_fileref_create_by_prompt(glui32 usage, glui32 fmode,
         prompt2 = "to store";
     
     printf("%s %s: ", prompt, prompt2);
-    
+
+#if defined (__EMSCRIPTEN__)
+    EM_ASM_({
+        haven.file.prompt(Pointer_stringify($0));
+    }, prompt2 );
+
+    buf = haven_wait_for_filename();
+#else
     res = fgets(buf, BUFLEN-1, stdin);
+
     if (!res) {
         printf("\n<end of input>\n");
         glk_exit();
     }
-
+#endif
     /* Trim whitespace from end and beginning. */
 
     val = strlen(buf);
